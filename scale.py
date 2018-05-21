@@ -3,7 +3,7 @@ import sys
 import re
 import boto3
 
-parser = argparse.ArgumentParser(description='Redeploy an ECS service')
+parser = argparse.ArgumentParser(description='Scale an ECS service')
 parser.add_argument(
     '--account', required=True, help='The account to assume the role in'
 )
@@ -19,6 +19,10 @@ parser.add_argument(
     '--cluster', default='default', help='The ECS cluster for the service'
 )
 parser.add_argument('--service', required=True, help='The ECS service')
+parser.add_argument(
+    '--desired-count', required=True, help='The number of tasks to run',
+    type=int
+)
 args = parser.parse_args()
 
 session = boto3.Session()
@@ -74,12 +78,19 @@ ecs = boto3.client(
     region_name=args.region
 )
 
+current = ecs.describe_services(
+    services=[args.service],
+    cluster=args.cluster
+)['services'][0]['desiredCount']
+
+print(f'current desired count is {current}', file=sys.stderr)
+
 print('updating service...', file=sys.stderr)
 
 ecs.update_service(
     cluster=args.cluster,
     service=args.service,
-    forceNewDeployment=True,
+    desiredCount=args.desired_count,
 )
 
 print(
